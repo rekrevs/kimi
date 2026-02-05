@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kimi-serve
+  namespace: aic
+spec:
+  selector:
+    app: kimi-serve
+  ports:
+  - port: 31245
+    targetPort: 31245
+    name: http
+  type: ClusterIP

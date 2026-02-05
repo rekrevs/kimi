@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-data
+  namespace: aic
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rook-ceph-rbd
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-webui
+  namespace: aic
+  labels:
+    app: open-webui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: open-webui
+  template:
+    metadata:
+      labels:
+        app: open-webui
+    spec:
+      containers:
+      - name: open-webui
+        image: ghcr.io/open-webui/open-webui:main
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        # Point to Kimi-K2.5 service (OpenAI-compatible API)
+        - name: OPENAI_API_BASE_URL
+          value: "http://kimi-serve.aic.svc.cluster.local:31245/v1"
+        - name: OPENAI_API_KEY
+          value: "not-needed"  # Kimi doesn't require auth
+        # Disable Ollama (we're using OpenAI-compatible endpoint)
+        - name: OLLAMA_BASE_URL
+          value: ""
+        - name: ENABLE_OLLAMA_API
+          value: "false"
+        # Enable OpenAI API
+        - name: ENABLE_OPENAI_API
+          value: "true"
+        # Data directory
+        - name: DATA_DIR
+          value: "/app/backend/data"
+        # Disable signup after first user (security)
+        - name: ENABLE_SIGNUP
+          value: "true"
+        - name: DEFAULT_USER_ROLE
+          value: "user"
+        volumeMounts:
+        - name: data
+          mountPath: /app/backend/data
+        resources:
+          requests:
+            cpu: "2"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: open-webui-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-webui
+  namespace: aic
+spec:
+  selector:
+    app: open-webui
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: open-webui
+  namespace: aic
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - aic-kimi.icedc.se
+    secretName: open-webui-tls
+  rules:
+  - host: aic-kimi.icedc.se
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: open-webui
+            port:
+              number: 8080
