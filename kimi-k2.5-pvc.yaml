@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kimi-k2.5-model
+  namespace: aic
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rook-ceph-rbd
+  resources:
+    requests:
+      storage: 700Gi

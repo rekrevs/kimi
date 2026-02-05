@@ -1,0 +1,115 @@
+{
+  "tokens_per_second": {
+    "runs": [
+      {
+        "run": 1,
+        "prompt_tokens": 46,
+        "completion_tokens": 300,
+        "elapsed_seconds": 25.02,
+        "tokens_per_second": 11.99
+      },
+      {
+        "run": 2,
+        "prompt_tokens": 46,
+        "completion_tokens": 300,
+        "elapsed_seconds": 18.83,
+        "tokens_per_second": 15.93
+      },
+      {
+        "run": 3,
+        "prompt_tokens": 46,
+        "completion_tokens": 300,
+        "elapsed_seconds": 18.05,
+        "tokens_per_second": 16.62
+      },
+      {
+        "run": 4,
+        "prompt_tokens": 46,
+        "completion_tokens": 300,
+        "elapsed_seconds": 18.09,
+        "tokens_per_second": 16.58
+      },
+      {
+        "run": 5,
+        "prompt_tokens": 46,
+        "completion_tokens": 300,
+        "elapsed_seconds": 17.96,
+        "tokens_per_second": 16.71
+      }
+    ],
+    "average_tps": 15.57
+  },
+  "large_context": {
+    "prompt_tokens": 10242,
+    "completion_tokens": 100,
+    "elapsed_seconds": 25.03,
+    "success": true,
+    "response_preview": " The user wants a brief 2-sentence summary based on the text provided. The text appears to be a repetitive series of similar sentences about the history of artificial intelligence, mentioning Dartmout"
+  },
+  "coding": [
+    {
+      "test": "binary_search_generation",
+      "success": true,
+      "has_type_hints": false,
+      "elapsed": 19.12
+    },
+    {
+      "test": "debug_fibonacci",
+      "success": true,
+      "elapsed": 20.71
+    },
+    {
+      "test": "explain_quicksort",
+      "success": true,
+      "mentions_worst_case": true,
+      "elapsed": 24.65
+    }
+  ],
+  "factual": {
+    "questions": [
+      {
+        "test": "speed of light",
+        "correct": false,
+        "elapsed": 6.72
+      },
+      {
+        "test": "water formula",
+        "correct": false,
+        "elapsed": 4.1
+      },
+      {
+        "test": "shakespeare",
+        "correct": true,
+        "elapsed": 6.04
+      },
+      {
+        "test": "largest planet",
+        "correct": true,
+        "elapsed": 6.65
+      },
+      {
+        "test": "WWII end",
+        "correct": true,
+        "elapsed": 6.63
+      }
+    ],
+    "accuracy": 60.0
+  },
+  "multimodal": {
+    "supports_images": false,
+    "error": "{\"object\":\"error\",\"message\":\"Internal server error: broken data stream when reading image file\",\"type\":\"InternalServerError\",\"param\":null,\"code\":500}",
+    "reason": "Model does not support vision/image input"
+  },
+  "reasoning": [
+    {
+      "test": "math_word_problem",
+      "correct": true,
+      "elapsed": 13.95
+    },
+    {
+      "test": "logic_puzzle",
+      "correct": true,
+      "elapsed": 13.33
+    }
+  ]
+}

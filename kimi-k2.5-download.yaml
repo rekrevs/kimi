@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kimi-download
+  namespace: aic
+  labels:
+    app: kimi-download
+spec:
+  nodeSelector:
+    accelerator: nvidia-gtx-2080ti
+  containers:
+  - name: download
+    image: python:3.11-slim
+    command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      echo "=== Kimi-K2.5 Model Downloader ==="
+      echo "Installing dependencies..."
+      pip install -q huggingface-hub[hf_transfer]
+
+      echo ""
+      echo "Starting download of moonshotai/Kimi-K2.5..."
+      echo "This will take a while (~600GB)..."
+      echo "Monitor progress: kubectl logs -f kimi-download -n aic"
+      echo ""
+
+      python << 'PYEOF'
+      import os
+      os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "1"
+
+      from huggingface_hub import snapshot_download
+
+      print("Starting snapshot_download...")
+      snapshot_download(
+          repo_id="moonshotai/Kimi-K2.5",
+          local_dir="/models/kimi-k2.5",
+          local_dir_use_symlinks=False,
+      )
+      print("Download complete!")
+      PYEOF
+
+      echo ""
+      echo "=== Download complete ==="
+      du -sh /models/kimi-k2.5
+      ls -la /models/kimi-k2.5
+
+      echo ""
+      echo "Keeping pod alive for inspection..."
+      sleep infinity
+    resources:
+      requests:
+        cpu: "4"
+        memory: "16Gi"
+      limits:
+        memory: "16Gi"
+    volumeMounts:
+    - name: models
+      mountPath: /models
+  volumes:
+  - name: models
+    persistentVolumeClaim:
+      claimName: kimi-k2.5-model
+  restartPolicy: Never

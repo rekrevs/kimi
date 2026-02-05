@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kimi-serve
+  namespace: aic
+  labels:
+    app: kimi-serve
+spec:
+  nodeSelector:
+    accelerator: nvidia-h100
+  containers:
+  - name: inference
+    image: pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel
+    command:
+    - /bin/bash
+    - -c
+    - |
+      set -e
+      echo "=== Kimi-K2.5 Inference Server Setup ==="
+      echo "Hardware: 2x H100 (188GB VRAM) + AMD EPYC 9654 (384 cores, 1.5TB RAM)"
+      echo ""
+
+      # Install build tools
+      apt-get update && apt-get install -y git build-essential cmake
+
+      # Clone and install KT-Kernel
+      echo "Installing KTransformers (kimi_k2.5 branch)..."
+      cd /workspace
+      git clone https://github.com/kvcache-ai/ktransformers.git
+      cd ktransformers
+      git checkout kimi_k2.5
+      git submodule update --init --recursive
+      cd kt-kernel && ./install.sh
+      cd /workspace
+
+      # Remove incompatible packages from base image
+      echo "Removing incompatible base packages..."
+      pip uninstall -y torchvision torchaudio 2>/dev/null || true
+
+      # Install custom SGLang fork
+      echo "Installing SGLang (kimi_k2.5 branch)..."
+      git clone https://github.com/kvcache-ai/sglang.git
+      cd sglang
+      git checkout kimi_k2.5
+      pip install -e "python[all]"
+
+      # Install compatible torchvision, then fix cudnn version
+      pip install torchvision --index-url https://download.pytorch.org/whl/cu124
+      pip install nvidia-cudnn-cu12==9.16.0.29
+      cd /workspace
+
+      echo ""
+      echo "=== Starting Kimi-K2.5 Inference Server ==="
+      echo "Model path: /models/kimi-k2.5"
+      echo "Port: 31245"
+      echo ""
+
+      # Launch server
+      # 2x H100 config: more GPU experts since we have 188GB VRAM
+      # Using RAWINT4 since AMD EPYC doesn't have Intel AMX
+      python -m sglang.launch_server \
+        --host 0.0.0.0 \
+        --port 31245 \
+        --model /models/kimi-k2.5 \
+        --kt-weight-path /models/kimi-k2.5 \
+        --kt-cpuinfer 64 \
+        --kt-threadpool-count 2 \
+        --kt-num-gpu-experts 60 \
+        --kt-method RAWINT4 \
+        --kt-gpu-prefill-token-threshold 400 \
+        --trust-remote-code \
+        --mem-fraction-static 0.94 \
+        --served-model-name Kimi-K2.5 \
+        --enable-mixed-chunk \
+        --tensor-parallel-size 2 \
+        --enable-p2p-check \
+        --disable-shared-experts-fusion \
+        --chunked-prefill-size 32768 \
+        --max-total-tokens 50000 \
+        --attention-backend flashinfer
+
+    ports:
+    - containerPort: 31245
+      name: http
+    resources:
+      requests:
+        cpu: "64"
+        memory: "650Gi"  # Requires quota increase from 500Gi to 700Gi+
+        nvidia.com/gpu: "2"
+      limits:
+        memory: "650Gi"
+        nvidia.com/gpu: "2"
+    volumeMounts:
+    - name: models
+      mountPath: /models
+    - name: workspace
+      mountPath: /workspace
+    - name: dshm
+      mountPath: /dev/shm
+  volumes:
+  - name: models
+    persistentVolumeClaim:
+      claimName: kimi-k2.5-model
+  - name: workspace
+    emptyDir: {}
+  - name: dshm
+    emptyDir:
+      medium: Memory
+      sizeLimit: 128Gi
+  restartPolicy: Never
